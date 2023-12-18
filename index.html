@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Model Webpage</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #loading {
+            display: none;
+            margin-top: 20px;
+        }
+        #error {
+            color: red;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>My Model Webpage</h1>
+    <p>Click the button to get the result from the API:</p>
+    <input type="text" id="lat_text" placeholder="Insert Latitude" />
+    <input type="text" id="lon_text" placeholder="Insert Longitude" />
+    <button onclick="callAPI()">Get Result</button>
+
+    <div id="loading">
+        <!-- <img src="loading.gif" alt="Loading..." width="50"> -->
+        <p>Loading...</p>
+    </div>
+
+    <div id="result"></div>
+    <div id="error"></div>
+
+    <script>
+        function callAPI() {
+            document.getElementById('result').innerHTML = ''; // Clear previous result
+            document.getElementById('error').innerHTML = ''; // Clear previous error
+            document.getElementById('loading').style.display = 'block'; // Show loading
+            let lat = document.getElementById('lat_text').value; // Show loading
+            let lon = document.getElementById('lon_text').value; // Show loading
+
+            alert(lat + "," + lon );
+
+            // Example coordinates (Hyderabad, India)
+            var userLat = lat; // 17.385044;
+            var userLon = lon; // 78.486671;
+
+            // Make the API call
+            fetch(`http://pranavsangave.pythonanywhere.com/myModel/${userLat}/${userLon}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Hide loading
+                    document.getElementById('loading').style.display = 'none';
+
+                    // Display the result on the webpage
+                    var resultDiv = document.getElementById('result');
+                    resultDiv.innerHTML = '<h2>Result:</h2>';
+                    resultDiv.innerHTML += '<p>' + data.Answer + '</p>';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // Hide loading and display error message
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('error').innerHTML = 'Error occurred while fetching data.';
+                });
+        }
+    </script>
+</body>
+</html>
