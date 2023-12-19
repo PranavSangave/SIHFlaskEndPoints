@@ -8,10 +8,13 @@ from sklearn.cluster import DBSCAN
 from geopy.distance import geodesic
 import joblib
 
+from sklearn.preprocessing import LabelEncoder
+
+from haversine import haversine, Unit
+
 from sklearn.cluster import KMeans
 
 from sklearn.neighbors import NearestNeighbors
-from sklearn.model_selection import train_test_split
 import numpy as np
 
 from sklearn.impute import SimpleImputer
@@ -337,6 +340,184 @@ def depthWellAdvanced(user_lat, user_lon):
         'depth': f"{recommended_depth}",
         'well_type': f"{recommended_well_type}",
         'html_content': f"{html_content}"
+    }
+
+    return jsonify(result)
+
+# Used to find drillingTechnic and formation
+@app.route('/drillingTechnic/<float:user_lat>/<float:user_lon>')
+def drillingTechnic(user_lat, user_lon):
+    
+    # Load the Aquifer data from an Excel file
+    file_path = 'Aquifer_data_Cuddalore.xlsx'
+    aquifer_df = pd.read_excel(file_path)
+
+    # Drop rows with missing values in the 'FORMATION' column
+    aquifer_df = aquifer_df.dropna(subset=['FORMATION', 'Y_IN_DEC', 'X_IN_DEC'])
+
+    # Encode categorical labels ('HardRock' and 'SoftRock') into numerical values
+    label_encoder = LabelEncoder()
+    aquifer_df['FORMATION'] = label_encoder.fit_transform(aquifer_df['FORMATION'])
+
+    # Features and target variable
+    X = aquifer_df[['Y_IN_DEC', 'X_IN_DEC']]
+    y = aquifer_df['FORMATION']
+
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Train the KNN classifier
+    knn_classifier = KNeighborsClassifier(n_neighbors=3)
+    knn_classifier.fit(X_train, y_train)
+
+    # Function to predict 'FORMATION' based on user input location
+    def predict_formation(user_latitude, user_longitude):
+        user_location = [[user_latitude, user_longitude]]
+
+        # Find the nearest aquifer location
+        nearest_aquifer_index = knn_classifier.kneighbors(user_location)[1][0][0]
+        nearest_aquifer_formation = label_encoder.inverse_transform([y.iloc[nearest_aquifer_index]])[0]
+
+        return nearest_aquifer_formation
+
+    # Function to suggest drilling technique based on 'FORMATION'
+    def suggest_drilling_technique(formation):
+        if formation == 'SR':
+            return "SoftRock formation suggests Rotary drilling technique."
+        elif formation == 'HR':
+            return "HardRock formation suggests Down the hole drilling technique."
+
+    # Take user input for location
+    user_latitude = user_lat
+    user_longitude = user_lon
+
+    # Predict 'FORMATION' based on user input
+    predicted_formation = predict_formation(user_latitude, user_longitude)
+
+    # Display the result and drilling technique suggestion
+    print(f"The predicted 'Aquifer type for the given coordinates is: {predicted_formation}")
+
+    if predicted_formation == 'SR':
+        print(suggest_drilling_technique(predicted_formation))
+        pf = suggest_drilling_technique(predicted_formation)
+    elif predicted_formation == 'HR':
+        print(suggest_drilling_technique(predicted_formation))
+        pf = suggest_drilling_technique(predicted_formation)
+    else:
+        pf = "Not found"
+        print("Not found")
+
+    result = {
+        'formation': f"{predicted_formation}",
+        'drilling_technic': f"{pf}"
+    }
+
+    return jsonify(result)
+
+# Used to find water quality (ONLY FOR CHLORIDE)
+@app.route('/waterQualityChloride/<float:user_lat>/<float:user_lon>')
+def waterQualityChloride(user_lat, user_lon):
+    # Load the modified water quality dataset
+    csv_file_path = 'Modified_Water_Quality_Shuffled.csv'
+    df_water_quality = pd.read_csv(csv_file_path)
+
+    # Take user input for the test location (latitude and longitude)
+    user_latitude = user_lat
+    user_longitude = user_lon
+    test_location = (user_latitude, user_longitude)
+
+    # Define the threshold distance in kilometers
+    threshold_distance_km = 3.0
+
+    # Calculate distances to all wells
+    distances = []
+    for index, row in df_water_quality.iterrows():
+        well_location = (row['Latitude'], row['Longitude'])
+        distance = haversine(test_location, well_location, unit=Unit.KILOMETERS)
+        distances.append(distance)
+
+    # Filter wells within the threshold distance
+    nearby_wells_indices = np.where(np.array(distances) <= threshold_distance_km)[0]
+
+    if len(nearby_wells_indices) > 0:
+        # Calculate the mean chloride level for nearby wells
+        mean_chloride = df_water_quality.iloc[nearby_wells_indices]['Chloride_mg_per_l'].mean()
+        print(f"The predicted chloride level is: {mean_chloride:.2f} mg/l")
+        chloride_level = f"The predicted chloride level is: {mean_chloride:.2f} mg/l"
+    else:
+        print(f"Not able to predict the chloride level")
+        chloride_level = f"Not able to predict the chloride level"
+
+    result = {
+        'chloride_level': f"{chloride_level}"
+    }
+
+    return jsonify(result)
+
+
+@app.route('/depthOfWaterBearing/<float:user_lat>/<float:user_lon>')
+def depthOfWaterBearing(user_lat, user_lon):
+    # Function to find three nearest aquifer locations and calculate average depth
+    def find_three_nearest_aquifers_and_average_depth(file_path, formation_column, top_column, bottom_column, user_latitude, user_longitude):
+        # Load the Aquifer data from an Excel file
+        aquifer_df = pd.read_excel(file_path)
+
+        # Drop rows with missing values in the specified columns
+        aquifer_df = aquifer_df.dropna(subset=['FORMATION', 'Y_IN_DEC', 'X_IN_DEC', top_column, bottom_column])
+
+        # Encode categorical labels into numerical values
+        label_encoder = LabelEncoder()
+        aquifer_df['FORMATION'] = label_encoder.fit_transform(aquifer_df['FORMATION'])
+
+        # Features and target variable
+        X = aquifer_df[['Y_IN_DEC', 'X_IN_DEC']]
+        y = aquifer_df['FORMATION']
+
+        # Train-test split
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        # Train the KNN classifier
+        knn_classifier = KNeighborsClassifier(n_neighbors=3)
+        knn_classifier.fit(X_train, y_train)
+
+        # Function to find the three nearest aquifer locations
+        def find_three_nearest_aquifers():
+            user_location = [[user_latitude, user_longitude]]
+
+            # Find the three nearest aquifer locations
+            nearest_aquifer_indices = knn_classifier.kneighbors(user_location, n_neighbors=3)[1][0]
+            nearest_aquifer_data = aquifer_df.iloc[nearest_aquifer_indices]
+
+            return nearest_aquifer_data
+
+        # Function to calculate the average depth for the three nearest aquifer locations
+        def calculate_average_aquifer_depth(nearest_aquifer_data, column_name):
+            average_depth = nearest_aquifer_data[column_name].mean()
+            return average_depth
+
+        # Find the three nearest aquifers
+        nearest_aquifer_data = find_three_nearest_aquifers()
+
+        # Calculate the average depth of specified columns for the three nearest aquifers
+        average_top_depth = calculate_average_aquifer_depth(nearest_aquifer_data, top_column)
+        average_bottom_depth = calculate_average_aquifer_depth(nearest_aquifer_data, bottom_column)
+
+        # Display the results
+        print(f"{formation_column} water bearing zone is: {average_top_depth} meters - {average_bottom_depth} meters")
+
+        return f"{formation_column} water bearing zone is: {average_top_depth} meters - {average_bottom_depth} meters"
+
+
+    # Use the same latitude and longitude for all zones
+    user_latitude = user_lat
+    user_longitude = user_lon
+
+    # Run the program for each water bearing zone
+    result = {
+        'first' : find_three_nearest_aquifers_and_average_depth('Aquifer_data_Cuddalore.xlsx', 'First', 'Aq_I_top_Rl (m.amsl)', 'Aq_I_Bottom_RL (m.amsl)', user_latitude, user_longitude),
+        'second' : find_three_nearest_aquifers_and_average_depth('Aquifer_data_Cuddalore.xlsx', 'Second', 'Aq_II_top_Rl (m.amsl)', 'Aq_II_Bottom_RL (m.amsl)', user_latitude, user_longitude),
+        'third' : find_three_nearest_aquifers_and_average_depth('Aquifer_data_Cuddalore.xlsx', 'Third', 'Aq_III_top_Rl (m.amsl)', 'Aq_III_Bottom_RL (m.amsl)', user_latitude, user_longitude),
+        'forth' : find_three_nearest_aquifers_and_average_depth('Aquifer_data_Cuddalore.xlsx', 'Fourth', 'Aq_IV_top_Rl  (m.amsl)', 'Aq_IV_top_Rl  (m.amsl)', user_latitude, user_longitude)
     }
 
     return jsonify(result)
