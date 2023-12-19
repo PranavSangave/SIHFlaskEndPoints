@@ -22,6 +22,13 @@ from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, accuracy_score
 
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import Pipeline
+import matplotlib.pyplot as plt
+
+import base64
+import json
+
 app = Flask(__name__)
 
 @app.route('/')
@@ -29,226 +36,226 @@ def hello_world():
     return 'Hello, World!'
 
 # Used to find TDS, EC & Chloride
-@app.route('/newModelSrushti/<float:user_lat>/<float:user_lon>')
-def newModeSrushti(user_lat, user_lon):
-    # User input for file path
-    file_path = "water_quality_shuffled.csv"
+# @app.route('/newModelSrushti/<float:user_lat>/<float:user_lon>')
+# def newModeSrushti(user_lat, user_lon):
+#     # User input for file path
+#     file_path = "water_quality_shuffled.csv"
 
-    # Load the dataset
-    df = pd.read_csv(file_path)
+#     # Load the dataset
+#     df = pd.read_csv(file_path)
 
-    # Remove rows with missing values
-    df = df.dropna(subset=['Latitude', 'Longitude', 'EC_micro_mhos_per_cm', 'TDS_mg_per_l', 'Chloride_mg_per_l'])
+#     # Remove rows with missing values
+#     df = df.dropna(subset=['Latitude', 'Longitude', 'EC_micro_mhos_per_cm', 'TDS_mg_per_l', 'Chloride_mg_per_l'])
 
-    # Extract features (X) and target variables (y_ec, y_tds, y_chlorine)
-    X = df[['Latitude', 'Longitude']]
-    y_ec = df['EC_micro_mhos_per_cm']
-    y_tds = df['TDS_mg_per_l']
-    y_chlorine = df['Chloride_mg_per_l']
+#     # Extract features (X) and target variables (y_ec, y_tds, y_chlorine)
+#     X = df[['Latitude', 'Longitude']]
+#     y_ec = df['EC_micro_mhos_per_cm']
+#     y_tds = df['TDS_mg_per_l']
+#     y_chlorine = df['Chloride_mg_per_l']
 
-    # Split the data into training and testing sets (70% training, 30% testing)
-    X_train, X_test, y_ec_train, y_ec_test, y_tds_train, y_tds_test, y_chlorine_train, y_chlorine_test = train_test_split(
-        X, y_ec, y_tds, y_chlorine, test_size=0.3, random_state=42
-    )
+#     # Split the data into training and testing sets (70% training, 30% testing)
+#     X_train, X_test, y_ec_train, y_ec_test, y_tds_train, y_tds_test, y_chlorine_train, y_chlorine_test = train_test_split(
+#         X, y_ec, y_tds, y_chlorine, test_size=0.3, random_state=42
+#     )
 
-    # Handle missing values using SimpleImputer for EC, TDS, and Chlorine prediction
-    ec_imputer = SimpleImputer(strategy='mean')
-    tds_imputer = SimpleImputer(strategy='mean')
-    chlorine_imputer = SimpleImputer(strategy='mean')
+#     # Handle missing values using SimpleImputer for EC, TDS, and Chlorine prediction
+#     ec_imputer = SimpleImputer(strategy='mean')
+#     tds_imputer = SimpleImputer(strategy='mean')
+#     chlorine_imputer = SimpleImputer(strategy='mean')
 
-    X_ec_imputed_train = ec_imputer.fit_transform(X_train)
-    X_ec_imputed_test = ec_imputer.transform(X_test)
+#     X_ec_imputed_train = ec_imputer.fit_transform(X_train)
+#     X_ec_imputed_test = ec_imputer.transform(X_test)
 
-    X_tds_imputed_train = tds_imputer.fit_transform(X_train)
-    X_tds_imputed_test = tds_imputer.transform(X_test)
+#     X_tds_imputed_train = tds_imputer.fit_transform(X_train)
+#     X_tds_imputed_test = tds_imputer.transform(X_test)
 
-    X_chlorine_imputed_train = chlorine_imputer.fit_transform(X_train)
-    X_chlorine_imputed_test = chlorine_imputer.transform(X_test)
+#     X_chlorine_imputed_train = chlorine_imputer.fit_transform(X_train)
+#     X_chlorine_imputed_test = chlorine_imputer.transform(X_test)
 
-    # Find 3 nearest neighbors for the given location
-    test_location_lat = user_lat
-    test_location_lon = user_lon
-    test_location = [[test_location_lat, test_location_lon]]
+#     # Find 3 nearest neighbors for the given location
+#     test_location_lat = user_lat
+#     test_location_lon = user_lon
+#     test_location = [[test_location_lat, test_location_lon]]
 
-    neighbors = NearestNeighbors(n_neighbors=3, metric='haversine')
-    neighbors.fit(np.radians(X))
-    distances, indices = neighbors.kneighbors(np.radians(test_location))
+#     neighbors = NearestNeighbors(n_neighbors=3, metric='haversine')
+#     neighbors.fit(np.radians(X))
+#     distances, indices = neighbors.kneighbors(np.radians(test_location))
 
-    # Extract the indices of the nearest neighbors
-    nearest_indices = indices[0]
+#     # Extract the indices of the nearest neighbors
+#     nearest_indices = indices[0]
 
-    # Extract EC, TDS, and Chlorine values of the nearest neighbors
-    nearest_values_ec = y_ec.iloc[nearest_indices].values
-    nearest_values_tds = y_tds.iloc[nearest_indices].values
-    nearest_values_chlorine = y_chlorine.iloc[nearest_indices].values
+#     # Extract EC, TDS, and Chlorine values of the nearest neighbors
+#     nearest_values_ec = y_ec.iloc[nearest_indices].values
+#     nearest_values_tds = y_tds.iloc[nearest_indices].values
+#     nearest_values_chlorine = y_chlorine.iloc[nearest_indices].values
 
-    # Calculate the average values
-    average_ec = np.mean(nearest_values_ec)
-    average_tds = np.mean(nearest_values_tds)
-    average_chlorine = np.mean(nearest_values_chlorine)
+#     # Calculate the average values
+#     average_ec = np.mean(nearest_values_ec)
+#     average_tds = np.mean(nearest_values_tds)
+#     average_chlorine = np.mean(nearest_values_chlorine)
 
-    # Define water quality classification based on parameters
-    def classify_water_quality(ec, tds, chloride):
-        if ec < 750 and tds < 500 and chloride < 250:
-            return 'Good'
-        elif 750 <= ec <= 1500 and 500 <= tds <= 1000 and 250 <= chloride <= 500:
-            return 'Fair'
-        else:
-            return 'Not Acceptable'    
+#     # Define water quality classification based on parameters
+#     def classify_water_quality(ec, tds, chloride):
+#         if ec < 750 and tds < 500 and chloride < 250:
+#             return 'Good'
+#         elif 750 <= ec <= 1500 and 500 <= tds <= 1000 and 250 <= chloride <= 500:
+#             return 'Fair'
+#         else:
+#             return 'Not Acceptable'    
     
-    # Classify water quality for the average values
-    classification = classify_water_quality(average_ec, average_tds, average_chlorine)
+#     # Classify water quality for the average values
+#     classification = classify_water_quality(average_ec, average_tds, average_chlorine)
 
-    result = {
-        'EC': f'{average_ec:.2f}',
-        'TDS': f'{average_tds:.2f}',
-        'Chloride': f'{average_chlorine:.2f}',
-        'classfication': f'{classification}'
-    }
+#     result = {
+#         'EC': f'{average_ec:.2f}',
+#         'TDS': f'{average_tds:.2f}',
+#         'Chloride': f'{average_chlorine:.2f}',
+#         'classfication': f'{classification}'
+#     }
         
-    return jsonify(result)
+#     return jsonify(result)
 
 # Used to find depth and well type
-@app.route('/newCombined/<float:user_lat>/<float:user_lon>')
-def newCombined(user_lat, user_lon):
-    # Load the dataset
-    file_path = "dugwell.csv"  # Update this with the correct file path
-    df = pd.read_csv(file_path)
+# @app.route('/newCombined/<float:user_lat>/<float:user_lon>')
+# def newCombined(user_lat, user_lon):
+#     # Load the dataset
+#     file_path = "dugwell.csv"  # Update this with the correct file path
+#     df = pd.read_csv(file_path)
 
-    # Remove rows with missing values
-    df = df.dropna(subset=['Y', 'X', 'Depth (m.bgl)', 'Well Type'])
+#     # Remove rows with missing values
+#     df = df.dropna(subset=['Y', 'X', 'Depth (m.bgl)', 'Well Type'])
 
-    # Extract features (X) and target variables (y_depth, y_well_type)
-    X = df[['Y', 'X']]
-    y_depth = df['Depth (m.bgl)']
-    y_well_type = df['Well Type']
+#     # Extract features (X) and target variables (y_depth, y_well_type)
+#     X = df[['Y', 'X']]
+#     y_depth = df['Depth (m.bgl)']
+#     y_well_type = df['Well Type']
 
-    # Split the data into training and testing sets
-    X_train, X_test, y_depth_train, y_depth_test, y_well_type_train, y_well_type_test = train_test_split(
-        X, y_depth, y_well_type, test_size=0.2, random_state=42
-    )
+#     # Split the data into training and testing sets
+#     X_train, X_test, y_depth_train, y_depth_test, y_well_type_train, y_well_type_test = train_test_split(
+#         X, y_depth, y_well_type, test_size=0.2, random_state=42
+#     )
 
-    # Handle missing values using SimpleImputer for depth prediction
-    depth_imputer = SimpleImputer(strategy='mean')
-    X_depth_imputed = depth_imputer.fit_transform(X_train)
+#     # Handle missing values using SimpleImputer for depth prediction
+#     depth_imputer = SimpleImputer(strategy='mean')
+#     X_depth_imputed = depth_imputer.fit_transform(X_train)
 
-    # Create and fit the KNN regression model for depth prediction
-    depth_model = KNeighborsRegressor(n_neighbors=3)
-    depth_model.fit(X_depth_imputed, y_depth_train)
+#     # Create and fit the KNN regression model for depth prediction
+#     depth_model = KNeighborsRegressor(n_neighbors=3)
+#     depth_model.fit(X_depth_imputed, y_depth_train)
 
-    # Predict depth for the test set
-    X_test_depth_imputed = depth_imputer.transform(X_test)
-    depth_predictions = depth_model.predict(X_test_depth_imputed)
+#     # Predict depth for the test set
+#     X_test_depth_imputed = depth_imputer.transform(X_test)
+#     depth_predictions = depth_model.predict(X_test_depth_imputed)
 
-    # Handle missing values using SimpleImputer for well type prediction
-    well_type_imputer = SimpleImputer(strategy='most_frequent')
-    X_well_type_imputed = well_type_imputer.fit_transform(X_train)
+#     # Handle missing values using SimpleImputer for well type prediction
+#     well_type_imputer = SimpleImputer(strategy='most_frequent')
+#     X_well_type_imputed = well_type_imputer.fit_transform(X_train)
 
-    # Create and fit the KNN classification model for well type prediction
-    well_type_model = KNeighborsClassifier(n_neighbors=3)
-    well_type_model.fit(X_well_type_imputed, y_well_type_train)
+#     # Create and fit the KNN classification model for well type prediction
+#     well_type_model = KNeighborsClassifier(n_neighbors=3)
+#     well_type_model.fit(X_well_type_imputed, y_well_type_train)
 
-    # Predict well type for the test set
-    X_test_well_type_imputed = well_type_imputer.transform(X_test)
-    well_type_predictions = well_type_model.predict(X_test_well_type_imputed)
+#     # Predict well type for the test set
+#     X_test_well_type_imputed = well_type_imputer.transform(X_test)
+#     well_type_predictions = well_type_model.predict(X_test_well_type_imputed)
 
-    # Function to recommend well type based on user input
-    def recommend_well_type(user_lat, user_lon):
-        user_location = [[user_lat, user_lon]]
+#     # Function to recommend well type based on user input
+#     def recommend_well_type(user_lat, user_lon):
+#         user_location = [[user_lat, user_lon]]
 
-        # Predict depth for user location
-        user_depth_imputed = depth_imputer.transform(user_location)
-        user_depth_prediction = depth_model.predict(user_depth_imputed)
+#         # Predict depth for user location
+#         user_depth_imputed = depth_imputer.transform(user_location)
+#         user_depth_prediction = depth_model.predict(user_depth_imputed)
 
-        # Predict well type for user location
-        user_well_type_imputed = well_type_imputer.transform(user_location)
-        user_well_type_prediction = well_type_model.predict(user_well_type_imputed)
+#         # Predict well type for user location
+#         user_well_type_imputed = well_type_imputer.transform(user_location)
+#         user_well_type_prediction = well_type_model.predict(user_well_type_imputed)
 
-        return user_depth_prediction[0], user_well_type_prediction[0]
+#         return user_depth_prediction[0], user_well_type_prediction[0]
 
-    # Example usage
-    user_latitude = user_lat
-    user_longitude = user_lon
+#     # Example usage
+#     user_latitude = user_lat
+#     user_longitude = user_lon
 
-    predicted_depth, suggested_well_type = recommend_well_type(user_latitude, user_longitude)
+#     predicted_depth, suggested_well_type = recommend_well_type(user_latitude, user_longitude)
 
-    # Display the predictions
-    # print(f"Predicted Depth: {predicted_depth} meters")
-    # print(f"Suggested Well Type: {suggested_well_type}")
+#     # Display the predictions
+#     # print(f"Predicted Depth: {predicted_depth} meters")
+#     # print(f"Suggested Well Type: {suggested_well_type}")
 
-    result = {
-        'predicted_depth': f'{predicted_depth}',
-        'well_type': f'{suggested_well_type}'
-    }
+#     result = {
+#         'predicted_depth': f'{predicted_depth}',
+#         'well_type': f'{suggested_well_type}'
+#     }
 
-    return jsonify(result)
+#     return jsonify(result)
 
 # Used to find flow
-@app.route('/newFlowRate/<float:user_lat>/<float:user_lon>')
-def newFlowRate(user_lat, user_lon):
-    # Step 3: Load your Excel file into a Pandas DataFrame
-    # Assuming your Excel file has a sheet named 'Sheet1' (adjust accordingly)
-    df = pd.read_excel('Transmisivitty.xlsx', sheet_name='Sheet1')
+# @app.route('/newFlowRate/<float:user_lat>/<float:user_lon>')
+# def newFlowRate(user_lat, user_lon):
+#     # Step 3: Load your Excel file into a Pandas DataFrame
+#     # Assuming your Excel file has a sheet named 'Sheet1' (adjust accordingly)
+#     df = pd.read_excel('Transmisivitty.xlsx', sheet_name='Sheet1')
 
-    # Step 4: Data Preprocessing
-    # Assuming 'aq1_yield (lps)' is the column you want to predict
-    X = df[['Y_IN_DEC', 'X_IN_DEC']]  # Features (using 'Y_IN_DEC' and 'X_IN_DEC')
-    y = df['aq1_yield (lps)']  # Target variable
+#     # Step 4: Data Preprocessing
+#     # Assuming 'aq1_yield (lps)' is the column you want to predict
+#     X = df[['Y_IN_DEC', 'X_IN_DEC']]  # Features (using 'Y_IN_DEC' and 'X_IN_DEC')
+#     y = df['aq1_yield (lps)']  # Target variable
 
-    # Handle missing values in the target variable
-    y.fillna(y.mean(), inplace=True)  # You can choose a different imputation strategy if needed
+#     # Handle missing values in the target variable
+#     y.fillna(y.mean(), inplace=True)  # You can choose a different imputation strategy if needed
 
-    # Handle missing values in the input features
-    X.fillna(X.mean(), inplace=True)  # You can choose a different imputation strategy if needed
+#     # Handle missing values in the input features
+#     X.fillna(X.mean(), inplace=True)  # You can choose a different imputation strategy if needed
 
-    # Normalize or standardize numerical features
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+#     # Normalize or standardize numerical features
+#     scaler = StandardScaler()
+#     X_scaled = scaler.fit_transform(X)
 
-    # Step 5: Perform K-means clustering to identify clusters
-    kmeans = KMeans(n_clusters=5, random_state=42)  # You can adjust the number of clusters (k) as needed
-    X['Cluster'] = kmeans.fit_predict(X_scaled)
+#     # Step 5: Perform K-means clustering to identify clusters
+#     kmeans = KMeans(n_clusters=5, random_state=42)  # You can adjust the number of clusters (k) as needed
+#     X['Cluster'] = kmeans.fit_predict(X_scaled)
 
-    # Step 6: Handle missing values in the input features using an imputer
-    numerical_imputer = SimpleImputer(strategy='mean')
-    X_scaled = numerical_imputer.fit_transform(X_scaled)
+#     # Step 6: Handle missing values in the input features using an imputer
+#     numerical_imputer = SimpleImputer(strategy='mean')
+#     X_scaled = numerical_imputer.fit_transform(X_scaled)
 
-    # Step 7: Create and train the KNN model for each cluster
-    knn_models = {}
-    for cluster in range(kmeans.n_clusters):
-        cluster_data = X[X['Cluster'] == cluster].drop('Cluster', axis=1)
-        cluster_target = y[X['Cluster'] == cluster]
+#     # Step 7: Create and train the KNN model for each cluster
+#     knn_models = {}
+#     for cluster in range(kmeans.n_clusters):
+#         cluster_data = X[X['Cluster'] == cluster].drop('Cluster', axis=1)
+#         cluster_target = y[X['Cluster'] == cluster]
 
-        knn_model = KNeighborsRegressor(n_neighbors=5)  # You can adjust the number of neighbors (k) as needed
-        knn_model.fit(cluster_data, cluster_target)
+#         knn_model = KNeighborsRegressor(n_neighbors=5)  # You can adjust the number of neighbors (k) as needed
+#         knn_model.fit(cluster_data, cluster_target)
 
-        knn_models[cluster] = knn_model
+#         knn_models[cluster] = knn_model
 
-    # Step 8: Get user input - Latitude and Longitude
-    user_latitude = user_lat
-    user_longitude = user_lon
+#     # Step 8: Get user input - Latitude and Longitude
+#     user_latitude = user_lat
+#     user_longitude = user_lon
 
-    # Create a DataFrame with user input
-    user_input = pd.DataFrame({
-        'Y_IN_DEC': [user_latitude],
-        'X_IN_DEC': [user_longitude],
-    })
+#     # Create a DataFrame with user input
+#     user_input = pd.DataFrame({
+#         'Y_IN_DEC': [user_latitude],
+#         'X_IN_DEC': [user_longitude],
+#     })
 
-    # Normalize or standardize user input
-    user_input_scaled = scaler.transform(user_input)
+#     # Normalize or standardize user input
+#     user_input_scaled = scaler.transform(user_input)
 
-    # Step 9: Use the trained KNN model for the nearest cluster to make predictions on the user data
-    user_cluster = kmeans.predict(user_input_scaled)[0]
-    user_prediction = knn_models[user_cluster].predict(user_input)
+#     # Step 9: Use the trained KNN model for the nearest cluster to make predictions on the user data
+#     user_cluster = kmeans.predict(user_input_scaled)[0]
+#     user_prediction = knn_models[user_cluster].predict(user_input)
 
-    # Step 10: Print or use the prediction as needed
-    # Step 10: Print or use the prediction as needed
-    print("Estimated Flow Rate:", user_prediction[0], "liters per second")
-    result = {
-        'flow_rate' : f'{user_prediction[0]}'
-    }
+#     # Step 10: Print or use the prediction as needed
+#     # Step 10: Print or use the prediction as needed
+#     print("Estimated Flow Rate:", user_prediction[0], "liters per second")
+#     result = {
+#         'flow_rate' : f'{user_prediction[0]}'
+#     }
 
-    return jsonify(result)
+#     return jsonify(result)
 
 # Used to find depth, well type and returns Map also
 @app.route('/depthWellAdvanced/<float:user_lat>/<float:user_lon>')
@@ -454,7 +461,77 @@ def waterQualityChloride(user_lat, user_lon):
 
     return jsonify(result)
 
+# Used to find water quality (EC, TDS, CHLORIDE)
+@app.route('/waterQualityChlorideAll/<float:user_late>/<float:user_lon>')
+def waterQualityChlorideAll(user_late, user_lon):
+    # Load the dataset
+    file_path = "UpdatedWaterQuality.csv"
+    df_water_quality = pd.read_csv(file_path)
 
+    # User input for latitude and longitude
+    user_lat = user_late
+    user_long = user_lon
+
+    # User location
+    user_location = (user_lat, user_long)
+
+    # Define the columns of interest
+    columns_of_interest = ['EC_1', 'F_1', 'EC_2', 'F_2', 'EC_3', 'F_3', 'EC_4', 'F_4']
+
+    # Define the threshold distance in kilometers
+    threshold_distance_km = 3.0
+
+    # Initialize dictionaries to store nearby values and TDS for each column
+    nearby_values = {}
+    tds_values = {}
+    means = {}
+
+    # Calculate distances to all wells
+    for column in columns_of_interest:
+        nearby_column_values = []
+
+        for index, row in df_water_quality.iterrows():
+            well_location = (row['Y'], row['X'])
+            distance = haversine(user_location, well_location, unit=Unit.KILOMETERS)
+
+            if distance <= threshold_distance_km:
+                nearby_column_values.append(row[column])
+
+        # Calculate and print the mean value for the current column
+        mean_value = np.mean(nearby_column_values)
+        print(f"Mean {column} value of nearby wells: {mean_value:.2f}")
+        means.update({
+            f"{column}": f"value of nearby wells: {mean_value:.2f}"
+        }
+        )
+
+        # Store the nearby values for the current column in the dictionary
+        nearby_values[column] = nearby_column_values
+
+        # Calculate TDS based on the mean EC value for 'EC_1', 'EC_2', 'EC_3', and 'EC_4'
+        if column.startswith('EC'):
+            aquifer_number = int(column.split('_')[1])
+            tds_column = f'TDS_{aquifer_number}'
+            tds_values[tds_column] = mean_value * 0.67
+
+    # Print TDS values for all relevant aquifers
+    tds = {}
+    print("\nTDS values for Aquifers 1, 2, 3, and 4:")
+    for aquifer_number in range(1, 5):
+        tds_column = f'TDS_{aquifer_number}'
+        print(f"TDS value for Aquifer {aquifer_number}: {tds_values.get(tds_column, 0):.2f}")
+        tds.update({
+            f"TDS Value of Aquifer {aquifer_number}": f"{tds_values.get(tds_column, 0):.2f}"
+        })
+
+    result = {
+        'means' : means,
+        'tds' : tds
+    }
+
+    return jsonify(result)
+
+# Used to find depthOfWaterBearing
 @app.route('/depthOfWaterBearing/<float:user_lat>/<float:user_lon>')
 def depthOfWaterBearing(user_lat, user_lon):
     # Function to find three nearest aquifer locations and calculate average depth
@@ -522,7 +599,113 @@ def depthOfWaterBearing(user_lat, user_lon):
 
     return jsonify(result)
 
+# Used to find Water Discharge
+@app.route('/waterDischarge/<float:user_lat>/<float:user_lon>')
+def waterDischarge(user_lat, user_lon):
+    def train_and_predict(file_path, target_columns, user_latitude, user_longitude):
+        # Load the dataset
+        df = pd.read_excel(file_path)
 
+        predictions = {}
+
+        for target_column in target_columns:
+            # Select relevant columns
+            selected_columns = ['Y_IN_DEC', 'X_IN_DEC', target_column]
+            df_selected = df[selected_columns]
+
+            # Drop rows with missing target values
+            df_cleaned = df_selected.dropna(subset=[target_column])
+
+            # Split the cleaned data into training and testing sets
+            X = df_cleaned[['Y_IN_DEC', 'X_IN_DEC']]
+            y = df_cleaned[target_column]
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+            # Create a pipeline for preprocessing and modeling
+            model = Pipeline(steps=[
+                ('imputer', SimpleImputer(strategy='mean')),
+                ('regressor', LinearRegression())
+            ])
+
+            # Train the model
+            model.fit(X_train, y_train)
+
+            # Use the provided latitude and longitude values
+            user_data = pd.DataFrame([[user_latitude, user_longitude]], columns=['Y_IN_DEC', 'X_IN_DEC'])
+
+            prediction = model.predict(user_data)
+
+            # If values are missing, the prediction will be based on the provided values
+            print(f"Predicted {target_column}:", prediction[0])
+
+            predictions[target_column] = prediction[0]
+
+        return predictions
+
+    def plot_wave_graph(predictions, export_path=None):
+        aquifer_names = list(predictions.keys())
+        predicted_values = list(predictions.values())
+
+        # Define colors for each aquifer
+        colors = ['#FF1493', '#00FF00', '#FFA500', '#0000FF']
+
+        # Plotting the wave graph (line plot) with different colors and connected dots
+        plt.figure(figsize=(8, 5))
+        
+        # Connect all points with a single line
+        for i in range(len(aquifer_names)-1):
+            plt.plot([aquifer_names[i], aquifer_names[i+1]], [predicted_values[i], predicted_values[i+1]], marker='o', linestyle='-', color=colors[i], markersize=8, linewidth=2)
+        
+        plt.xlabel('Aquifer')
+        plt.ylabel('Predicted Values')
+        plt.title('Predicted Values for Different Aquifers')
+        plt.grid(True, linestyle='--', alpha=0.7)
+        plt.tight_layout()
+
+        # Save the plot as a JPG file if export_path is provided
+        if export_path:
+            plt.savefig(export_path, format='jpg')
+
+        # Display the plot
+        # plt.show()
+
+    # File path
+    file_path = 'Transmisivitty.xlsx'
+
+    # Take latitude and longitude input only once
+    user_latitude = user_lat
+    user_longitude = user_lon
+
+    # Target columns
+    target_columns = ['aq1_yield (lps)', 'aq2_yield (lps)', 'AQ3_yield (lps)', 'AQ4_yield (lps)']
+
+    # Train and predict for all targets
+    all_predictions = train_and_predict(file_path, target_columns, user_latitude, user_longitude)
+
+    # Provide the export path for the JPG file
+    export_path = 'predicted_wave_graph.jpg'
+
+    # Plotting the wave graph (line plot) with different colors and a single line connecting all points
+    plot_wave_graph(all_predictions, export_path)
+
+    # Encoding image    
+    # Load the image as bytes
+    with open('predicted_wave_graph.jpg', 'rb') as image_file:
+        image_data = image_file.read()
+
+    # Encode the image data to base64
+    encoded_image = base64.b64encode(image_data).decode('utf-8')
+
+    # Create a dictionary with the image data
+    image_dict = {'image': encoded_image}
+
+    # Convert the dictionary to a JSON string
+    result = {
+        "image": json.dumps(image_dict),
+        "predictions": f"{all_predictions}"
+    }
+
+    return jsonify(result)
 
 if __name__ == "__main__":
     app.run(debug=True)
