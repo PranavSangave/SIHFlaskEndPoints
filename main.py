@@ -92,12 +92,12 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # print(data)
 
 # Used to find depth, well type and returns Map also
-def depthWellAdvanced(user_lat, user_lon):
+def depthWellAdvanced(user_lat, user_lon, thresh):
 
     # Fetching thresholds
     # threshold_distance_value = get_threshold_value(data, "depth_well_api")
     # print("threshold value: " + threshold_distance_value)
-    def create_well_recommendation_map(user_latitude, user_longitude, threshold_distance=3.0):
+    def create_well_recommendation_map(user_latitude, user_longitude, threshold_distance=float(thresh)):
         # Load the dataset
         file_path = "dugwell.csv"  # Update this with the correct file path
         df = pd.read_csv(file_path)
@@ -250,15 +250,15 @@ def drillingTechnic(user_lat, user_lon):
         pf = "Not found"
         print("Not found")
 
-        result = {
-            'formation': f"{predicted_formation}",
-            'drilling_technic': f"{pf}"
-        }
+    result = {
+        'formation': f"{predicted_formation}",
+        'drilling_technic': f"{pf}"
+    }
 
-        return result
+    return result
 
 # Used to find water quality (ONLY FOR CHLORIDE)
-def waterQualityChloride(user_lat, user_lon):
+def waterQualityChloride(user_lat, user_lon, thresh):
     # Load the modified water quality dataset
     csv_file_path = 'Modified_Water_Quality_Shuffled.csv'
     df_water_quality = pd.read_csv(csv_file_path)
@@ -269,7 +269,7 @@ def waterQualityChloride(user_lat, user_lon):
     test_location = (user_latitude, user_longitude)
 
     # Define the threshold distance in kilometers
-    threshold_distance_km = 3.0
+    threshold_distance_km = float(thresh)
 
     # Calculate distances to all wells
     distances = []
@@ -297,7 +297,7 @@ def waterQualityChloride(user_lat, user_lon):
     return result
 
 # Used to find water quality (EC, TDS, CHLORIDE)
-def waterQualityChlorideAll(user_late, user_lon):
+def waterQualityChlorideAll(user_late, user_lon, thresh):
     # Load the dataset
     file_path = "UpdatedWaterQuality.csv"
     df_water_quality = pd.read_csv(file_path)
@@ -313,7 +313,7 @@ def waterQualityChlorideAll(user_late, user_lon):
     columns_of_interest = ['EC_1', 'F_1', 'EC_2', 'F_2', 'EC_3', 'F_3', 'EC_4', 'F_4']
 
     # Define the threshold distance in kilometers
-    threshold_distance_km = 3.0
+    threshold_distance_km = float(thresh)
 
     # Initialize dictionaries to store nearby values and TDS for each column
     nearby_values = {}
@@ -500,13 +500,13 @@ def waterDischarge(user_lat, user_lon):
     #print("All Predictions:", all_predictions)
 
 # Used to find Water Discharge
-@app.route('/analyze_location/<float:user_lat>/<float:user_lon>')
-def analyze_location(user_lat, user_lon):
+@app.route('/analyze_location/<float:user_lat>/<float:user_lon>/<int:thresh>')
+def analyze_location(user_lat, user_lon, thresh):
     # Call each function with user_lat and user_lon
-    depth_well_result = depthWellAdvanced(user_lat, user_lon)
+    depth_well_result = depthWellAdvanced(user_lat, user_lon, thresh)
     drilling_technic_result = drillingTechnic(user_lat, user_lon)
-    water_quality_chloride_result = waterQualityChloride(user_lat, user_lon)
-    water_quality_all_result = waterQualityChlorideAll(user_lat, user_lon)
+    water_quality_chloride_result = waterQualityChloride(user_lat, user_lon, thresh)
+    water_quality_all_result = waterQualityChlorideAll(user_lat, user_lon, thresh)
     depth_water_bearing_result = depthOfWaterBearing(user_lat, user_lon)
     water_discharge_result = waterDischarge(user_lat, user_lon)
 
