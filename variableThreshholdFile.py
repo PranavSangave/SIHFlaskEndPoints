@@ -36,68 +36,68 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# # Used to fetch thresholds from given url
-# def threshold_api():
-#     url = 'https://northenmed.com/sih/apis/fetch_thresholds.php'
+# Used to fetch thresholds from given url
+def threshold_api():
+    url = 'https://northenmed.com/sih/apis/fetch_thresholds.php'
 
-#     headers = {
-#         'Accept': 'application/json',
-#         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-#     }
+    headers = {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    }
 
-#     try:
-#         response = requests.get(url, headers=headers)
+    try:
+        response = requests.get(url, headers=headers)
 
-#         if response.status_code == 200:
-#             # Assuming the response is in JSON format
-#             data = response.json()
-#             # print(data)
-#             rs = {
-#                 "ans" : f"{data}"
-#             }
-#         else:
-#             # print(f"Error: {response.status_code} - {response.text}")
-#             rs = {
-#                 'ans' : f"Error: {response.status_code} - {response.text}"
-#             }
+        if response.status_code == 200:
+            # Assuming the response is in JSON format
+            data = response.json()
+            # print(data)
+            rs = {
+                "ans" : f"{data}"
+            }
+        else:
+            # print(f"Error: {response.status_code} - {response.text}")
+            rs = {
+                'ans' : f"Error: {response.status_code} - {response.text}"
+            }
             
-#         return rs
+        return rs
 
-#     except requests.exceptions.RequestException as e:
-#         print(f"Request error: {e}")
-#         rs = {
-#             'error' : f"Request error: {e}"
-#         }
-#         return rs
+    except requests.exceptions.RequestException as e:
+        print(f"Request error: {e}")
+        rs = {
+            'error' : f"Request error: {e}"
+        }
+        return rs
 
-# def get_threshold_value(data, api_name):
-#     try:
-#         # Assuming the response is in JSON format
-#         data_dict = eval(data['ans'])
+def get_threshold_value(data, api_name):
+    try:
+        # Assuming the response is in JSON format
+        data_dict = eval(data['ans'])
         
-#         # Iterate through each dictionary to find the matching 'api_name'
-#         for item in data_dict:
-#             if item['api_name'] == api_name:
-#                 return item['threshold_value']
+        # Iterate through each dictionary to find the matching 'api_name'
+        for item in data_dict:
+            if item['api_name'] == api_name:
+                return item['threshold_value']
 
-#         # Return None if 'api_name' is not found
-#         return None
+        # Return None if 'api_name' is not found
+        return None
 
-#     except Exception as e:
-#         # print(f"Error in processing data: {e}")
-#         return None
+    except Exception as e:
+        # print(f"Error in processing data: {e}")
+        return None
 
-# data = threshold_api()
+data = threshold_api()
 
-# print(data)
+print(data)
 
 # Used to find depth, well type and returns Map also
 def depthWellAdvanced(user_lat, user_lon):
 
     # Fetching thresholds
-    # threshold_distance_value = get_threshold_value(data, "depth_well_api")
-    # print("threshold value: " + threshold_distance_value)
-    def create_well_recommendation_map(user_latitude, user_longitude, threshold_distance=3.0):
+    threshold_distance_value = get_threshold_value(data, "depth_well_api")
+    print("threshold value: " + threshold_distance_value)
+    def create_well_recommendation_map(user_latitude, user_longitude, threshold_distance=float(threshold_distance_value)):
         # Load the dataset
         file_path = "dugwell.csv"  # Update this with the correct file path
         df = pd.read_csv(file_path)
@@ -250,12 +250,12 @@ def drillingTechnic(user_lat, user_lon):
         pf = "Not found"
         print("Not found")
 
-        result = {
-            'formation': f"{predicted_formation}",
-            'drilling_technic': f"{pf}"
-        }
+    result = {
+        'formation': f"{predicted_formation}",
+        'drilling_technic': f"{pf}"
+    }
 
-        return result
+    return result
 
 # Used to find water quality (ONLY FOR CHLORIDE)
 def waterQualityChloride(user_lat, user_lon):
@@ -269,7 +269,8 @@ def waterQualityChloride(user_lat, user_lon):
     test_location = (user_latitude, user_longitude)
 
     # Define the threshold distance in kilometers
-    threshold_distance_km = 3.0
+    threshold_distance_km = float(get_threshold_value(data, "water_quality_chloride"))
+    print(threshold_distance_km)
 
     # Calculate distances to all wells
     distances = []
@@ -285,10 +286,10 @@ def waterQualityChloride(user_lat, user_lon):
         # Calculate the mean chloride level for nearby wells
         mean_chloride = df_water_quality.iloc[nearby_wells_indices]['Chloride_mg_per_l'].mean()
         print(f"The predicted chloride level is: {mean_chloride:.2f} mg/l")
-        chloride_level = f"{mean_chloride:.2f} mg/l"
+        chloride_level = f"The predicted chloride level is: {mean_chloride:.2f} mg/l"
     else:
         print(f"Not able to predict the chloride level")
-        chloride_level = f"NaN"
+        chloride_level = f"Not able to predict the chloride level"
 
     result = {
         'chloride_level': f"{chloride_level}"
@@ -313,7 +314,7 @@ def waterQualityChlorideAll(user_late, user_lon):
     columns_of_interest = ['EC_1', 'F_1', 'EC_2', 'F_2', 'EC_3', 'F_3', 'EC_4', 'F_4']
 
     # Define the threshold distance in kilometers
-    threshold_distance_km = 3.0
+    threshold_distance_km = float(get_threshold_value(data, "water_quality_all"))
 
     # Initialize dictionaries to store nearby values and TDS for each column
     nearby_values = {}
@@ -335,7 +336,7 @@ def waterQualityChlorideAll(user_late, user_lon):
         mean_value = np.mean(nearby_column_values)
         print(f"Mean {column} value of nearby wells: {mean_value:.2f}")
         means.update({
-            f"{column}": f"{mean_value:.2f}"
+            f"{column}": f"value of nearby wells: {mean_value:.2f}"
         }
         )
 
@@ -355,7 +356,7 @@ def waterQualityChlorideAll(user_late, user_lon):
         tds_column = f'TDS_{aquifer_number}'
         print(f"TDS value for Aquifer {aquifer_number}: {tds_values.get(tds_column, 0):.2f}")
         tds.update({
-            f"TDS_Value_of_Aquifer_{aquifer_number}": f"{tds_values.get(tds_column, 0):.2f}"
+            f"TDS Value of Aquifer {aquifer_number}": f"{tds_values.get(tds_column, 0):.2f}"
         })
 
     result = {
@@ -387,7 +388,7 @@ def depthOfWaterBearing(user_lat, user_lon):
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
         # Train the KNN classifier
-        knn_classifier = KNeighborsClassifier(n_neighbors=3)
+        knn_classifier = KNeighborsClassifier(n_neighbors= int(get_threshold_value(data, "water_quality_chloride")))
         knn_classifier.fit(X_train, y_train)
 
         # Function to find the three nearest aquifer locations
@@ -415,7 +416,7 @@ def depthOfWaterBearing(user_lat, user_lon):
         # Display the results
         print(f"{formation_column} water bearing zone is: {average_top_depth} meters - {average_bottom_depth} meters")
 
-        return f"{average_top_depth:.2f},{average_bottom_depth:.2f}"
+        return f"{formation_column} water bearing zone is: {average_top_depth} meters - {average_bottom_depth} meters"
 
 
     # Use the same latitude and longitude for all zones
@@ -434,7 +435,6 @@ def depthOfWaterBearing(user_lat, user_lon):
 
 # Used to find Water Discharge
 def waterDischarge(user_lat, user_lon):
-    ls = []
     def train_and_predict(file_path, target_columns, user_latitude, user_longitude):
         # Load the dataset
         df = pd.read_excel(file_path)
@@ -473,9 +473,34 @@ def waterDischarge(user_lat, user_lon):
 
             predictions[target_column] = prediction[0]
 
-            ls.append(f"{prediction[0]:.2f}")
-
         return predictions
+
+    def plot_wave_graph(predictions, export_path=None):
+        aquifer_names = list(predictions.keys())
+        predicted_values = list(predictions.values())
+
+        # Define colors for each aquifer
+        colors = ['#FF1493', '#00FF00', '#FFA500', '#0000FF']
+
+        # Plotting the wave graph (line plot) with different colors and connected dots
+        plt.figure(figsize=(8, 5))
+        
+        # Connect all points with a single line
+        for i in range(len(aquifer_names)-1):
+            plt.plot([aquifer_names[i], aquifer_names[i+1]], [predicted_values[i], predicted_values[i+1]], marker='o', linestyle='-', color=colors[i], markersize=8, linewidth=2)
+        
+        plt.xlabel('Aquifer')
+        plt.ylabel('Predicted Values')
+        plt.title('Predicted Values for Different Aquifers')
+        plt.grid(True, linestyle='--', alpha=0.7)
+        plt.tight_layout()
+
+        # Save the plot as a JPG file if export_path is provided
+        if export_path:
+            plt.savefig(export_path, format='jpg')
+
+        # Display the plot
+        # plt.show()
 
     # File path
     file_path = 'Transmisivitty.xlsx'
@@ -487,17 +512,33 @@ def waterDischarge(user_lat, user_lon):
     # Target columns
     target_columns = ['aq1_yield (lps)', 'aq2_yield (lps)', 'AQ3_yield (lps)', 'AQ4_yield (lps)']
 
-    result = {
-        'ans': ls
-    }
-
     # Train and predict for all targets
     all_predictions = train_and_predict(file_path, target_columns, user_latitude, user_longitude)
 
-    return result
+    # Provide the export path for the JPG file
+    export_path = 'predicted_wave_graph.jpg'
 
-    # Access individual predictions
-    #print("All Predictions:", all_predictions)
+    # Plotting the wave graph (line plot) with different colors and a single line connecting all points
+    plot_wave_graph(all_predictions, export_path)
+
+    # Encoding image    
+    # Load the image as bytes
+    with open('predicted_wave_graph.jpg', 'rb') as image_file:
+        image_data = image_file.read()
+
+    # Encode the image data to base64
+    encoded_image = base64.b64encode(image_data).decode('utf-8')
+
+    # Create a dictionary with the image data
+    image_dict = {'image': encoded_image}
+
+    # Convert the dictionary to a JSON string
+    result = {
+        "image": json.dumps(image_dict),
+        "predictions": f"{all_predictions}"
+    }
+
+    return result
 
 # Used to find Water Discharge
 @app.route('/analyze_location/<float:user_lat>/<float:user_lon>')
